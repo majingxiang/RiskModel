@@ -1,4 +1,5 @@
 # outside module
+import random
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -6,6 +7,10 @@ import linearmodels
 from loguru import logger
 import matplotlib.pyplot as plt
 import datetime
+from jqdatasdk import auth, is_auth, get_price
+
+auth("18622056381", "1510103Yhw")
+logger.info("Connected to JQData: {}".format(is_auth()))
 
 # inside module
 from Utils import format_for_print
@@ -26,8 +31,49 @@ weights_out = np.sqrt(market_cap_raw_value.stack().loc[X_out.index])
 
 assert len(X_out) == len(y_out)
 
+rets_out = rets.shift(-1)
+market_price = get_price("000906.XSHG", fields=["close"], start_date='2014-01-01', end_date='2020-01-01')
+market_ret = market_price.pct_change()
+market_ret_out = market_ret.shift(-1)
 
-# todo: change return into residual then rerun the analysis
+
+def get_residual(rets, market_ret):
+    """Get residual from regression with market return"""
+    residual = []
+    for index, value in rets.iteritems():
+        y = value
+        X = sm.add_constant(market_ret)
+
+        intersection = sorted(list(set(X.dropna().index) & set(y.dropna().index)))
+
+        fit = sm.OLS(y.values, X, missing="drop").fit()
+        resid = fit.resid
+
+        assert len(intersection) == len(resid)
+        residual.append(pd.Series(resid, index=intersection))
+
+    result = pd.concat(residual, axis=1)
+    result.columns = rets.columns
+    return result
+
+
+resid = get_residual(rets_out, market_ret)
+logger.info("Residual from removing market return")
+logger.info("Lag 1 auto correlation: {}".format(resid.stack().autocorr(1)))
+
+
+def reorder(ret, num=20):
+    """
+    Reorder the columns, then stack the dataframe
+    Hopefully, this will reduce some autocorrelation
+    """
+    for i in range(num):
+        col = list(rets.columns)
+        random.shuffle(col)
+        logger.info("Auto corr for difference order {}".format(ret[col].stack().autocorr()))
+
+    return
+
 
 def analyze(X_in, y_in, weights):
     # 1. autocorrelation

@@ -25,8 +25,11 @@ rets_out = rets.shift(-1).dropna(how="all")
 # the factor return dataframe should shift the index by lag1
 rets_in = rets
 
+weights_in = np.sqrt(market_cap_raw_value.loc[rets_in.index])
+weights_out = np.sqrt(market_cap_raw_value.loc[rets_out.index])
 
-def one_step_cross_section_fit(ret, **kwargs):
+
+def one_step_cross_section_ols_fit(ret, **kwargs):
     factor_returns = pd.DataFrame(0, index=ret.index, columns=["const"] + list(kwargs.keys()))  # intercept
     R2 = pd.DataFrame(0, index=ret.index, columns=['R2'])
     t_stats = pd.DataFrame(0, index=ret.index, columns=list(kwargs.keys()))
@@ -39,6 +42,45 @@ def one_step_cross_section_fit(ret, **kwargs):
         y = value
 
         ols = sm.OLS(y.values, X, missing="drop").fit()
+        r2 = ols.rsquared
+        t = ols.tvalues
+        factor_ret = ols.params
+
+        intersection = sorted(set(X.dropna().index) & set(y.dropna().index))
+        resid = ols.resid
+        assert len(intersection) == len(resid)
+        residual.append(pd.Series(resid, index=intersection))
+
+        factor_returns.loc[index] = factor_ret
+        t_stats.loc[index] = t
+        R2.loc[index] = r2
+
+    R2.plot(title="R2")
+    t_stats.rolling(22).mean().plot(subplots=True, layout=(4, 2), title="Moving average T stats")
+
+    residual = pd.concat(residual, axis=1)
+    residual.columns = ret.index
+    residual = residual.T
+
+    return factor_returns, residual
+
+
+def one_step_cross_section_wls_fit(ret, weight, **kwargs):
+    factor_returns = pd.DataFrame(0, index=ret.index, columns=["const"] + list(kwargs.keys()))  # intercept
+    R2 = pd.DataFrame(0, index=ret.index, columns=['R2'])
+    t_stats = pd.DataFrame(0, index=ret.index, columns=list(kwargs.keys()))
+    residual = []
+
+    for index, value in ret.iterrows():
+        X = pd.concat([e.loc[index] for e in kwargs.values()], axis=1)
+        X.columns = list(kwargs.keys())
+        X = sm.add_constant(X)
+        y = value
+        w = weight.loc[index]
+
+        assert len(X) == len(y) == len(w)
+
+        ols = sm.WLS(y.values, X, missing="drop", weights=w).fit()
         r2 = ols.rsquared
         t = ols.tvalues
         factor_ret = ols.params
@@ -98,22 +140,55 @@ def one_step_cross_section_analyze(ret, coef, **kwargs):
 
 
 if __name__ == "__main__":
-    now = datetime.datetime.now().strftime("%Y%m%d")
-    logger.add("{}_{}.log".format("Cross section regression out-of-sample", now))
+    # now = datetime.datetime.now().strftime("%Y%m%d")
+    # logger.add("{}_{}.log".format("Cross section regression out-of-sample", now))
 
-    factor_returns, residual = one_step_cross_section_fit(rets_out, market_cap=market_cap, pe=pe, pe_lyr=pe_lyr, pb=pb,
-                                                          ps=ps, pcf=pcf, turnover=turnover)
+    logger.info("OLS")
+    ols_factor_returns, ols_residual = one_step_cross_section_ols_fit(rets_out, market_cap=market_cap, pe=pe,
+                                                                      pe_lyr=pe_lyr,
+                                                                      pb=pb,
+                                                                      ps=ps, pcf=pcf, turnover=turnover)
 
-    factor_returns.plot(subplots=True, layout=(4, 2))
-    logger.info("Cross section residual autocorrelation")
-    logger.info(format_for_print(pd.DataFrame(residual.apply(lambda x: x.autocorr(1)).round(3)).describe()))
+    logger.info("Cross sectional residual auto correlation summary")
+    logger.info(format_for_print(pd.DataFrame(ols_residual.apply(lambda x: x.autocorr(1)).round(3)).describe()))
 
-    coef = factor_returns.mean()
+    ols_coef = ols_factor_returns.mean()
 
-    R2, adj_R2, resid_autocorr = one_step_cross_section_analyze(rets_out, coef, market_cap=market_cap, pe=pe,
-                                                                pe_lyr=pe_lyr, pb=pb,
-                                                                ps=ps, pcf=pcf, turnover=turnover)
+    ols_R2, ols_adj_R2, ols_resid_autocorr = \
+        one_step_cross_section_analyze(rets_out, ols_coef, market_cap=market_cap, pe=pe,
+                                       pe_lyr=pe_lyr, pb=pb, ps=ps, pcf=pcf, turnover=turnover)
 
+    logger.info("WLS")
+    wls_factor_returns, wls_residual = \
+        one_step_cross_section_wls_fit(rets_out, weights_out, market_cap=market_cap, pe=pe, pe_lyr=pe_lyr,
+                                       pb=pb, ps=ps, pcf=pcf, turnover=turnover)
+
+    logger.info("Cross sectional residual auto correlation summary")
+    logger.info(format_for_print(pd.DataFrame(wls_residual.apply(lambda x: x.autocorr(1)).round(3)).describe()))
+
+    wls_coef = wls_factor_returns.mean()
+
+    wls_R2, wls_adj_R2, wls_resid_autocorr = \
+        one_step_cross_section_analyze(rets_out, wls_coef, market_cap=market_cap, pe=pe, pe_lyr=pe_lyr, pb=pb, ps=ps,
+                                       pcf=pcf, turnover=turnover)
+
+    coef = pd.concat([ols_coef, wls_coef], axis=1)
+    coef.columns = ["OLS", "WLS"]
+
+    R2 = pd.concat([ols_R2, wls_R2], axis=1)
+    R2.columns = ["OLS", "WLS"]
+
+    adj_R2 = pd.concat([ols_adj_R2, wls_adj_R2], axis=1)
+    adj_R2.columns = ["OLS", "WLS"]
+
+    resid_autocorr = pd.concat([ols_resid_autocorr, wls_resid_autocorr], axis=1)
+    resid_autocorr.columns = pd.MultiIndex.from_product([["OLS", "WLS"], ['Lag1', 'Lag5', 'Lag20']])
+
+    (ols_factor_returns - wls_factor_returns).\
+        plot(subplots=True, layout=(2, 4), title="OLS factor return - WLS factor return")
+
+    logger.info("Mean coefficient estimation")
+    logger.info(format_for_print(coef.apply(lambda x: x.round(3))))
     logger.info("R2")
     logger.info(format_for_print(R2.describe().round(4)))
     logger.info("Adj R2")

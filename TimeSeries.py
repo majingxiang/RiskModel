@@ -136,7 +136,8 @@ if __name__ == "__main__":
     now = datetime.datetime.now().strftime("%Y%m%d")
     logger.add("{}_{}.log".format("Time series regression out-of-sample", now))
 
-    sample_analysis(rets_out, 10)
+    # sample_analysis(rets_out, 10)
+    logger.info("Estimation with mean coefficient")
 
     factor_exposure, coef = \
         one_step_time_series_fit(rets_out, market_cap=market_cap, pe=pe, pe_lyr=pe_lyr, pb=pb, ps=ps, pcf=pcf,

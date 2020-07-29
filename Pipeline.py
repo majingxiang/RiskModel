@@ -25,6 +25,7 @@ rets = rets.droplevel(axis=1, level=0)
 rets = rets.dropna(how="all", axis=0)
 
 sector_rets = sector_rets.dropna(how="all", axis=0)
+sector_rets = sector_rets.droplevel(axis=1, level=0)
 
 
 # Data wrangling
