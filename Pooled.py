@@ -21,11 +21,13 @@ y_in = y_in.loc[X_in.index]
 y_out = rets.shift(-1).stack()
 X_out = X_in.loc[y_out.index]
 
-weights_in= np.sqrt(market_cap_raw_value.stack().loc[X_in.index])
+weights_in = np.sqrt(market_cap_raw_value.stack().loc[X_in.index])
 weights_out = np.sqrt(market_cap_raw_value.stack().loc[X_out.index])
 
 assert len(X_out) == len(y_out)
 
+
+# todo: change return into residual then rerun the analysis
 
 def analyze(X_in, y_in, weights):
     # 1. autocorrelation
@@ -54,8 +56,6 @@ def analyze(X_in, y_in, weights):
     bse.columns = ["WLS (bps)", "OLS (bps)"]
     bse = (bse * 10000).apply(lambda x: x.round(3))
     logger.info(format_for_print(bse))
-
-    logger.info("Residual covariance")
 
     # residual autocorrelation
 
