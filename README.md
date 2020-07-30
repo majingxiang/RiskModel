@@ -9,11 +9,19 @@ Date range: 2014-01-01 - 2020-01-01, including various regime environments
 
 ## Various objectives
 1. Risk analysis
-2. COV estimation
+2. Cov estimation
 3. Return forecast
 
 ## Methodology tested:
 1. Pooled regression
-2. 
-3. 
+2. Cross sectional regression
+3. Fama Macbeth regression
 4. 
+
+## Finding so far
+1. Residual auto correlation is significant for pooled/panel regression
+2. Fama Macbeth provides smaller standard error estimation than pooled regression
+3. 
+
+
+
