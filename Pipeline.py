@@ -1,13 +1,15 @@
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 __all__ = ["rets", "sector_rets", "market_cap_raw_value", "market_cap", "pe", "pe_lyr", "pb", "ps", "pcf",
            "turnover"]
 
 # read data in
-price = pd.read_csv("price.csv")
-fundamental = pd.read_csv("fundamental.csv")
-sector = pd.read_csv("sector.csv")
+PATH = str(Path().absolute().parent) + "\\Data\\"
+price = pd.read_csv(PATH + "price.csv")
+fundamental = pd.read_csv(PATH + "fundamental.csv")
+sector = pd.read_csv(PATH +"sector.csv")
 
 # Data cleaning
 # Return
@@ -23,10 +25,11 @@ sector_rets = rets[['sector_returns', 'ticker']].reset_index().pivot_table(colum
 rets = rets[['rets', 'ticker']].reset_index().pivot_table(columns="ticker", index='date')
 rets = rets.droplevel(axis=1, level=0)
 rets = rets.dropna(how="all", axis=0)
+rets = rets.loc['2014-01-03':]
 
 sector_rets = sector_rets.dropna(how="all", axis=0)
 sector_rets = sector_rets.droplevel(axis=1, level=0)
-
+sector_rets = sector_rets.loc['2014-01-03':]
 
 # Data wrangling
 def zscore(df):
@@ -85,8 +88,6 @@ def validate(*args):
 
     rets.index = pd.to_datetime(rets.index, format='%Y-%m-%d')
     sector_rets.index = pd.to_datetime(sector_rets.index, format='%Y-%m-%d')
-
-    assert all(sector_rets.index == rets.index)
 
     for df in args:
         df.index = pd.to_datetime(df.index, format="%Y-%m-%d")

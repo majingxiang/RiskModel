@@ -168,10 +168,10 @@ def analyze():
     (dummy_R2 - regular_R2_2).plot(title="R2 diff between dummy and numeric")
     (dummy_adj_R2 - regular_adj_R2_2).plot(title="Adj R2 diff between dummy and numeric")
 
-    regular_ar = regular_residual2.apply(lambda x: x.autocorr(1).round(3))
-    dummy_ar = dummy_residual.apply(lambda x: x.autocorr(1).round(3))
+    regular_ar = regular_residual2.apply(lambda x: x.autocorr(1))
+    dummy_ar = dummy_residual.apply(lambda x: x.autocorr(1))
     logger.info("(dummy residual autocorrelaiton - regular residual autocorrelaiton) /dummy residual autocorrelaiton")
-    logger.info(format_for_print(pd.DataFrame((dummy_ar - regular_ar) / regular_ar).describe()))
+    logger.info(format_for_print(pd.DataFrame((dummy_ar - regular_ar) / regular_ar).describe()).round(3))
 
     return
 
