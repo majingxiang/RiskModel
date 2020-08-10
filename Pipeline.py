@@ -3,13 +3,14 @@ import numpy as np
 from pathlib import Path
 
 __all__ = ["rets", "sector_rets", "market_cap_raw_value", "market_cap", "pe", "pe_lyr", "pb", "ps", "pcf",
-           "turnover"]
+           "turnover", "dummy"]
 
 # read data in
-PATH = str(Path().absolute().parent) + "\\Data\\"
+# the path should be changed based on different desktop
+PATH = "C:\\Users\\tjmaj\\Desktop\\RiskModel\\Data\\"
 price = pd.read_csv(PATH + "price.csv")
 fundamental = pd.read_csv(PATH + "fundamental.csv")
-sector = pd.read_csv(PATH +"sector.csv")
+sector = pd.read_csv(PATH + "sector.csv")
 
 # Data cleaning
 # Return
@@ -17,6 +18,7 @@ if list(sector.columns) != ['date', 'industry', "sector_close"]:
     sector.columns = ['date', 'industry', "sector_close"]
 
 price_sector_merged = price.merge(sector, how='left', on=['date', 'industry'])
+dummy = price_sector_merged[['ticker', 'industry']].drop_duplicates()
 price_sector_merged = price_sector_merged.drop('industry', axis=1).set_index("date")
 rets = price_sector_merged.groupby(["ticker"]).pct_change()
 rets.columns = ['rets', 'sector_returns']
@@ -30,6 +32,11 @@ rets = rets.loc['2014-01-03':]
 sector_rets = sector_rets.dropna(how="all", axis=0)
 sector_rets = sector_rets.droplevel(axis=1, level=0)
 sector_rets = sector_rets.loc['2014-01-03':]
+
+dummy = pd.get_dummies(dummy, columns=["industry"])
+dummy = dummy.set_index("ticker")
+dummy = dummy.loc[rets.columns]
+
 
 # Data wrangling
 def zscore(df):
