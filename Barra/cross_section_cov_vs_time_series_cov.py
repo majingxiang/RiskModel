@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     # time series cov
     factor_returns.index.name = None
-    ts_cov_raw = empirical_cov(factor_returns, 126)
+    ts_cov_raw = empirical_cov(factor_returns, 63)
 
     # realize vol
     realize_63d_vol = factor_returns.rolling(63).std().dropna(how="all")

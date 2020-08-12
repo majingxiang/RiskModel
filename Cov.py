@@ -11,7 +11,7 @@ import datetime
 from Utils import *
 from Pipeline import rets, sector_rets, market_cap_raw_value, market_cap, pe, pe_lyr, pb, ps, pcf, turnover
 
-__all__ = ["empirical_cov", "mixed_cov", "barra_cov"]
+__all__ = ["empirical_cov"]
 
 
 def empirical_cov(rets, window):
@@ -20,20 +20,16 @@ def empirical_cov(rets, window):
     return cov
 
 
-def mixed_cov(rets, *args):
-    """
-
-    Params:
-        rets:
-        args: window1, window2, window3
-    """
-
+def Newey_West(cov, window):
     return
 
 
-def barra_cov(rets, **kwargs):
-    """Barra covariance"""
+def eigen_factor_adjustment():
+    return
 
+
+def VRA():
+    """volatility regime adjustment"""
     return
 
 
